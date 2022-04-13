@@ -604,7 +604,8 @@ public interface MDP extends MDPGeneric<Double>
 	{
 		for (OfInt it = new IterableStateSet(subset, getNumStates(), complement).iterator(); it.hasNext();) {
 			final int s = it.nextInt();
-			result[s] = mvMultRewMinMaxSingle(s, vect, mdpRewards, min, strat);
+			result[s] = mvMultRewMinMaxSingleExperiment(s, vect, mdpRewards, min, strat);
+                        //result[s] = 0;
 		}
 	}
 
@@ -623,7 +624,7 @@ public interface MDP extends MDPGeneric<Double>
 	{
 		while (states.hasNext()) {
 			final int s = states.nextInt();
-			result[s] = mvMultRewMinMaxSingle(s, vect, mdpRewards, min, strat);
+			result[s] = mvMultRewMinMaxSingleExperiment(s, vect, mdpRewards, min, strat);
 		}
 	}
 
@@ -637,7 +638,7 @@ public interface MDP extends MDPGeneric<Double>
 	 * @param min Min or max for (true=min, false=max)
 	 * @param strat Storage for (memoryless) strategy choice indices (ignored if null)
 	 */
-	public default double mvMultRewMinMaxSingle(int s, double vect[], MDPRewards mdpRewards, boolean min, int strat[])
+	public default double mvMultRewMinMaxSingleExperiment(int s, double vect[], MDPRewards mdpRewards, boolean min, int strat[])
 	{
 		int stratCh = -1;
 		double minmax = 0;
@@ -647,11 +648,11 @@ public interface MDP extends MDPGeneric<Double>
 			double d = mvMultRewSingle(s, choice, vect, mdpRewards);
 			// Check whether we have exceeded min/max so far
 			if (first || (min && d < minmax) || (!min && d > minmax)) {
-				minmax = d;
+			        minmax = d;
 				// If strategy generation is enabled, remember optimal choice
 				if (strat != null)
 					stratCh = choice;
-			}
+				}
 			first = false;
 		}
 		// If strategy generation is enabled, store optimal choice
@@ -663,7 +664,7 @@ public interface MDP extends MDPGeneric<Double>
 				strat[s] = stratCh;
 			}
 		}
-
+                //mainLog.println("Minmax =" + minmax);
 		return minmax;
 	}
 
@@ -679,7 +680,7 @@ public interface MDP extends MDPGeneric<Double>
 	{
 		double d = mdpRewards.getStateReward(s);
 		d += mdpRewards.getTransitionReward(s, i);
-		d += sumOverTransitions(s, i, (__, t, prob) -> {
+		d += 0.95 * sumOverTransitions(s, i, (__, t, prob) -> {
 			return prob * vect[t];
 		});
 		return d;

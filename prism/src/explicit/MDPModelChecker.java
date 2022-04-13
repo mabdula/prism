@@ -1327,7 +1327,8 @@ public class MDPModelChecker extends ProbModelChecker
 
 		// Start iterations
 		iters = 0;
-		while (iters < k) {
+		boolean done = false;
+		while (!done) {
 			iters++;
 			// Matrix-vector multiply and min/max ops
 			mdp.mvMultRewMinMax(soln, mdpRewards, min, soln2, null, false, null);
@@ -1335,7 +1336,14 @@ public class MDPModelChecker extends ProbModelChecker
 			tmpsoln = soln;
 			soln = soln2;
 			soln2 = tmpsoln;
+                        done = true;
+			for (i = 0; i < n; i++) {
+				if (!PrismUtils.doublesAreClose(soln[i], soln2[i], termCritParam, termCrit == TermCrit.ABSOLUTE)) {
+					done = false;
+				}
+			}
 		}
+		mainLog.print("Expected cumulative reward (" + (min ? "min" : "max") + ")");
 
 		// Finished value iteration
 		timer = System.currentTimeMillis() - timer;
