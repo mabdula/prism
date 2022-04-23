@@ -638,6 +638,36 @@ public interface MDP extends MDPGeneric<Double>
 	 * @param min Min or max for (true=min, false=max)
 	 * @param strat Storage for (memoryless) strategy choice indices (ignored if null)
 	 */
+	public default double mvMultRewMinMaxSingle(int s, double vect[], MDPRewards mdpRewards, boolean min, int strat[])
+	{
+		int stratCh = -1;
+		double minmax = 0;
+		boolean first = true;
+
+		for (int choice = 0, numChoices = getNumChoices(s); choice < numChoices; choice++) {
+			double d = mvMultRewSingle(s, choice, vect, mdpRewards);
+			// Check whether we have exceeded min/max so far
+			if (first || (min && d < minmax) || (!min && d > minmax)) {
+			        minmax = d;
+				// If strategy generation is enabled, remember optimal choice
+				if (strat != null)
+					stratCh = choice;
+				}
+			first = false;
+		}
+		// If strategy generation is enabled, store optimal choice
+		if (strat != null && !first) {
+			// For max, only remember strictly better choices
+			if (min) {
+				strat[s] = stratCh;
+			} else if (strat[s] == -1 || minmax > vect[s]) {
+				strat[s] = stratCh;
+			}
+		}
+                //mainLog.println("Minmax =" + minmax);
+		return minmax;
+	}
+
 	public default double mvMultRewMinMaxSingleExperiment(int s, double vect[], MDPRewards mdpRewards, boolean min, int strat[])
 	{
 		int stratCh = -1;
