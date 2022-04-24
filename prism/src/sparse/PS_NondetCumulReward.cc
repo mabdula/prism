@@ -165,14 +165,20 @@ jboolean min				// min or max probabilities (true = min, false = max)
 	int *choice_starts_r = (int *)ndsm_r->choice_counts;
 	bool use_counts_r = ndsm_r->use_counts;
 	unsigned int *cols_r = ndsm_r->cols;
-		
+
+        bool done=false;
+	double d1_temp;
 	// note that we ignore max_iters as we know how any iterations _should_ be performed
-	for (iters = 0; iters < bound; iters++) {
-	
+	//for (iters = 0; iters < bound; iters++) {
+        iters=0;
+	while (!done) {
+                iters++;
+	        done =true;
 		// do matrix multiplication and min/max
 		h1 = h2 = h2_r = 0;
 		// loop through states
 		for (i = 0; i < n; i++) {
+                        d1_temp = d1;
 			d1 = 0.0; // initial value doesn't matter
 			first = true; // (because we also remember 'first')
 			// get pointers to nondeterministic choices for state i
@@ -196,7 +202,7 @@ jboolean min				// min or max probabilities (true = min, false = max)
 					// if there is one, add reward * prob to reward value
 					if (k_r < h2_r) { d2 += non_zeros_r[k_r] * non_zeros[k]; k_r++; }
 					// add prob * corresponding reward from previous iteration
-					d2 += non_zeros[k] * soln[cols[k]];
+					d2 += 0.95 * non_zeros[k] * soln[cols[k]];
 				}
 				// see if this value is the min/max so far
 				if (first || (min&&(d2<d1)) || (!min&&(d2>d1))) {
@@ -206,6 +212,11 @@ jboolean min				// min or max probabilities (true = min, false = max)
 			}
 			// set vector element
 			soln2[i] = d1;
+                        if((abs(d1_temp-d2)/d1_temp) >= 0.05)
+			  {
+                            done=false;
+			  }
+                        
 		}
 		
 		// print occasional status update

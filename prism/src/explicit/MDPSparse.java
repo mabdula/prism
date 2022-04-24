@@ -988,6 +988,48 @@ public class MDPSparse extends MDPExplicit
 
 		return minmax;
 	}
+	@Override
+        public double mvMultRewMinMaxSingleExperiment(int s, double vect[], MDPRewards mdpRewards, boolean min, int strat[])
+	{
+		int j, k, l1, h1, l2, h2, stratCh = -1;
+		double d, minmax;
+		boolean first;
+
+		minmax = 0;
+		first = true;
+		l1 = rowStarts[s];
+		h1 = rowStarts[s + 1];
+		for (j = l1; j < h1; j++) {
+			// Compute sum for this distribution
+			d = mdpRewards.getTransitionReward(s, j - l1);
+			l2 = choiceStarts[j];
+			h2 = choiceStarts[j + 1];
+			for (k = l2; k < h2; k++) {
+				d += 0.95 * nonZeros[k] * vect[cols[k]];
+			}
+			// Check whether we have exceeded min/max so far
+			if (first || (min && d < minmax) || (!min && d > minmax)) {
+				minmax = d;
+				// If strategy generation is enabled, remember optimal choice
+				if (strat != null)
+					stratCh = j - l1;
+			}
+			first = false;
+		}
+		// Add state reward (doesn't affect min/max)
+		minmax += mdpRewards.getStateReward(s);
+		// If strategy generation is enabled, store optimal choice
+		if (strat != null & !first) {
+			// For max, only remember strictly better choices
+			if (min) {
+				strat[s] = stratCh;
+			} else if (strat[s] == -1 || minmax > vect[s]) {
+				strat[s] = stratCh;
+			}
+		}
+
+		return minmax;
+	}
 
 	@Override
 	public double mvMultRewSingle(int s, int i, double[] vect, MCRewards mcRewards)
