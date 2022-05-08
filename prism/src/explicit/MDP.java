@@ -424,7 +424,7 @@ public interface MDP extends MDPGeneric<Double>
 	 */
 	public default double mvMultSingle(int s, int i, double vect[])
 	{
-		return sumOverTransitions(s, i, (int __, int t, double prob) -> {
+		return 0.95 * sumOverTransitions(s, i, (int __, int t, double prob) -> {
 			return prob * vect[t];
 		});
 	}
@@ -465,6 +465,7 @@ public interface MDP extends MDPGeneric<Double>
 	 */
 	public default double mvMultGSMinMax(double vect[], boolean min, PrimitiveIterator.OfInt states, boolean absolute, int strat[])
 	{
+
 		double d, diff, maxDiff = 0.0;
 		while (states.hasNext()) {
 			final int s = states.nextInt();
@@ -728,7 +729,7 @@ public interface MDP extends MDPGeneric<Double>
 	{
 		double d = mcRewards.getStateReward(s);
 		// TODO: add transition rewards when added to MCRewards
-		d += sumOverTransitions(s, i, (__, t, prob) -> {
+		d += 0.95 * sumOverTransitions(s, i, (__, t, prob) -> {
 			return prob * vect[t];
 		});
 		return d;
@@ -772,10 +773,12 @@ public interface MDP extends MDPGeneric<Double>
 	 */
 	public default double mvMultRewGSMinMax(double vect[], MDPRewards mdpRewards, boolean min, PrimitiveIterator.OfInt states, boolean absolute, int strat[])
 	{
+
 		double d, diff, maxDiff = 0.0;
 		while (states.hasNext()) {
 			final int s = states.nextInt();
-			d = mvMultRewJacMinMaxSingle(s, vect, mdpRewards, min, strat);
+
+			d = mvMultRewJacMinMaxSingleExperiment(s, vect, mdpRewards, min, strat);
 			diff = absolute ? (Math.abs(d - vect[s])) : (Math.abs(d - vect[s]) / d);
 			maxDiff = diff > maxDiff ? diff : maxDiff;
 			vect[s] = d;
@@ -802,7 +805,7 @@ public interface MDP extends MDPGeneric<Double>
 		double d;
 		while (states.hasNext()) {
 			final int s = states.nextInt();
-			d = mvMultRewJacMinMaxSingle(s, vect, mdpRewards, min, strat);
+			d = mvMultRewJacMinMaxSingleExperiment(s, vect, mdpRewards, min, strat);
 			if (ensureMonotonic) {
 				if (fromBelow) {
 					// from below: do max old and new
@@ -832,8 +835,9 @@ public interface MDP extends MDPGeneric<Double>
 	 * @param min Min or max for (true=min, false=max)
 	 * @param strat Storage for (memoryless) strategy choice indices (ignored if null)
 	 */
-	public default double mvMultRewJacMinMaxSingle(int s, double vect[], MDPRewards mdpRewards, boolean min, int strat[])
+	public default double mvMultRewJacMinMaxSingleExperiment(int s, double vect[], MDPRewards mdpRewards, boolean min, int strat[])
 	{
+
 		int stratCh = -1;
 		double minmax = 0;
 		boolean first = true;
@@ -881,12 +885,12 @@ public interface MDP extends MDPGeneric<Double>
 			boolean onlySelfLoops = true;
 
 			void accept(int s, int t, double prob) {
-				if (t != s) {
-					d += prob * vect[t];
-					onlySelfLoops = false;
-				} else {
-					diag -= prob;
-				}
+				// if (t != s) {
+					d += 0.95 * prob * vect[t];
+				// 	onlySelfLoops = false;
+				// } else {
+				// 	diag -= prob;
+				// }
 			}
 		}
 
@@ -896,19 +900,19 @@ public interface MDP extends MDPGeneric<Double>
 		double d = jac.d;
 		double diag = jac.diag;
 
-		if (jac.onlySelfLoops) {
-			if (d != 0) {
-				// always choosing the selfloop-action will produce infinite reward
-				d = (d > 0 ? Double.POSITIVE_INFINITY : Double.NEGATIVE_INFINITY);
-			} else {
-				// no reward & only self-loops: d remains 0
-				d = 0;
-			}
-		} else {
+		// if (jac.onlySelfLoops) {
+		// 	if (d != 0) {
+		// 		// always choosing the selfloop-action will produce infinite reward
+		// 		d = (d > 0 ? Double.POSITIVE_INFINITY : Double.NEGATIVE_INFINITY);
+		// 	} else {
+		// 		// no reward & only self-loops: d remains 0
+		// 		d = 0;
+		// 	}
+		// } else {
 			// not only self-loops, do Jacobi division
 			if (diag > 0)
 				d /= diag;
-		}
+		// }
 
 		return d;
 	}
@@ -923,8 +927,28 @@ public interface MDP extends MDPGeneric<Double>
 	 */
 	public default List<Integer> mvMultRewMinMaxSingleChoices(int s, double vect[], MDPRewards mdpRewards, boolean min, double val)
 	{
+
 		// Create data structures to store strategy
 		final List<Integer> result = new ArrayList<Integer>();
+
+		// One row of matrix-vector operation
+		for (int choice = 0, numChoices = getNumChoices(s); choice < numChoices; choice++) {
+			double d = mvMultRewSingle(s, choice, vect, mdpRewards);
+			// Store strategy info if value matches
+			if (PrismUtils.doublesAreEqual(val, d)) {
+				result.add(choice);
+			}
+		}
+
+		return result;
+	}
+
+	public default List<Integer> mvMultRewMinMaxSingleChoicesExperiment(int s, double vect[], MDPRewards mdpRewards, boolean min, double val)
+	{
+
+		// Create data structures to store strategy
+		final List<Integer> result = new ArrayList<Integer>();
+
 
 		// One row of matrix-vector operation
 		for (int choice = 0, numChoices = getNumChoices(s); choice < numChoices; choice++) {

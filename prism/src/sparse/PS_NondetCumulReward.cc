@@ -38,6 +38,7 @@
 #include "PrismSparseGlob.h"
 #include "jnipointer.h"
 #include <new>
+#include "Measures.h"
 
 //------------------------------------------------------------------------------
 
@@ -82,7 +83,9 @@ jboolean min				// min or max probabilities (true = min, false = max)
 	int i, j, k, k_r, l1, h1, l2, h2, l2_r, h2_r, iters;
 	double d1, d2, x, kb, kbt;
 	bool first;
-	
+	// measure for convergence termination check
+	MeasureSupNorm measure(term_crit == TERM_CRIT_RELATIVE);
+
 	// exception handling around whole function
 	try {
 	
@@ -173,7 +176,6 @@ jboolean min				// min or max probabilities (true = min, false = max)
         iters=0;
 	while (!done) {
                 iters++;
-	        done =true;
 		// do matrix multiplication and min/max
 		h1 = h2 = h2_r = 0;
 		// loop through states
@@ -212,11 +214,14 @@ jboolean min				// min or max probabilities (true = min, false = max)
 			}
 			// set vector element
 			soln2[i] = d1;
-                        if((abs(d1_temp-d2)/d1_temp) >= 0.05)
-			  {
-                            done=false;
-			  }
                         
+		}
+
+		// check convergence
+		measure.reset();
+		measure.measure(soln, soln2, n);
+		if (measure.value() < term_crit_param) {
+			done = true;
 		}
 		
 		// print occasional status update

@@ -1338,7 +1338,9 @@ public class MDPModelChecker extends ProbModelChecker
 			soln2 = tmpsoln;
                         done = true;
 			for (i = 0; i < n; i++) {
-				if (!PrismUtils.doublesAreClose(soln[i], soln2[i], termCritParam, termCrit == TermCrit.ABSOLUTE)) {
+			    double diff=2 * 0.95 * Math.abs(soln[i] - soln2[i]);
+
+			    if (diff >= termCritParam * (1-0.95)) {
 					done = false;
 				}
 			}
@@ -1901,7 +1903,7 @@ public class MDPModelChecker extends ProbModelChecker
 		MDPSolnMethod mdpSolnMethod = this.mdpSolnMethod;
 
 		// Switch to a supported method, if necessary
-		if (!(mdpSolnMethod == MDPSolnMethod.VALUE_ITERATION || mdpSolnMethod == MDPSolnMethod.GAUSS_SEIDEL || mdpSolnMethod == MDPSolnMethod.POLICY_ITERATION)) {
+		if (!(mdpSolnMethod == MDPSolnMethod.VALUE_ITERATION || mdpSolnMethod == MDPSolnMethod.GAUSS_SEIDEL || mdpSolnMethod == MDPSolnMethod.POLICY_ITERATION || mdpSolnMethod == MDPSolnMethod.MODIFIED_POLICY_ITERATION)) {
 			mdpSolnMethod = MDPSolnMethod.GAUSS_SEIDEL;
 			mainLog.printWarning("Switching to MDP solution method \"" + mdpSolnMethod.fullName() + "\"");
 		}
@@ -1918,49 +1920,49 @@ public class MDPModelChecker extends ProbModelChecker
 
 		long timerPre;
 
-		if (noPositiveECs) {
+		// if (noPositiveECs) {
 			// no inf states
 			inf = new BitSet();
 			timerPre = 0;
-		} else {
-			mainLog.println("Precomputation: Find positive end components...");
+		// } else {
+		// 	mainLog.println("Precomputation: Find positive end components...");
 
-			timerPre = System.currentTimeMillis();
+		// 	timerPre = System.currentTimeMillis();
 
-			ECComputer ecs = ECComputer.createECComputer(this, mdp);
-			ecs.computeMECStates();
-			BitSet positiveECs = new BitSet();
-			for (BitSet ec : ecs.getMECStates()) {
-				// check if this MEC is positive
-				boolean positiveEC = false;
-				for (int state : new IterableStateSet(ec, n)) {
-					if (mdpRewards.getStateReward(state) > 0) {
-						// state with positive reward in this MEC
-						positiveEC = true;
-						break;
-					}
-					for (int choice = 0, numChoices = mdp.getNumChoices(state); choice < numChoices; choice++) {
-						if (mdpRewards.getTransitionReward(state, choice) > 0 &&
-								mdp.allSuccessorsInSet(state, choice, ec)) {
-							// choice from this state with positive reward back into this MEC
-							positiveEC = true;
-							break;
-						}
-					}
-				}
-				if (positiveEC) {
-					positiveECs.or(ec);
-				}
-			}
+		// 	ECComputer ecs = ECComputer.createECComputer(this, mdp);
+		// 	ecs.computeMECStates();
+		// 	BitSet positiveECs = new BitSet();
+		// 	for (BitSet ec : ecs.getMECStates()) {
+		// 		// check if this MEC is positive
+		// 		boolean positiveEC = false;
+		// 		for (int state : new IterableStateSet(ec, n)) {
+		// 			if (mdpRewards.getStateReward(state) > 0) {
+		// 				// state with positive reward in this MEC
+		// 				positiveEC = true;
+		// 				break;
+		// 			}
+		// 			for (int choice = 0, numChoices = mdp.getNumChoices(state); choice < numChoices; choice++) {
+		// 				if (mdpRewards.getTransitionReward(state, choice) > 0 &&
+		// 						mdp.allSuccessorsInSet(state, choice, ec)) {
+		// 					// choice from this state with positive reward back into this MEC
+		// 					positiveEC = true;
+		// 					break;
+		// 				}
+		// 			}
+		// 		}
+		// 		if (positiveEC) {
+		// 			positiveECs.or(ec);
+		// 		}
+		// 	}
 
-			// inf = Pmax[ <> positiveECs ] > 0
-			//     = ! (Pmax[ <> positiveECs ] = 0)
-			inf = prob0(mdp, null, positiveECs, false, null);  // Pmax[ <> positiveECs ] = 0
-			inf.flip(0,n);  // !(Pmax[ <> positive ECs ] = 0) = Pmax[ <> positiveECs ] > 0
+		// 	// inf = Pmax[ <> positiveECs ] > 0
+		// 	//     = ! (Pmax[ <> positiveECs ] = 0)
+		// 	inf = prob0(mdp, null, positiveECs, false, null);  // Pmax[ <> positiveECs ] = 0
+		// 	inf.flip(0,n);  // !(Pmax[ <> positive ECs ] = 0) = Pmax[ <> positiveECs ] > 0
 
-			timerPre = System.currentTimeMillis() - timerPre;
-			mainLog.println("Precomputation took " + timerPre / 1000.0 + " seconds, " + inf.cardinality() + " infinite states, " + (n - inf.cardinality()) + " states remaining.");
-		}
+		// 	timerPre = System.currentTimeMillis() - timerPre;
+		// 	mainLog.println("Precomputation took " + timerPre / 1000.0 + " seconds, " + inf.cardinality() + " infinite states, " + (n - inf.cardinality()) + " states remaining.");
+		// }
 
 		// Compute rewards
 		// do standard max reward calculation, but with empty target set
@@ -1974,6 +1976,10 @@ public class MDPModelChecker extends ProbModelChecker
 		case POLICY_ITERATION:
 			res = computeReachRewardsPolIter(mdp, mdpRewards, new BitSet(), inf, false, null);
 			break;
+		case MODIFIED_POLICY_ITERATION:
+			res = computeReachRewardsModPolIter(mdp, mdpRewards, new BitSet(), inf, false, null);
+			break;
+
 		default:
 			throw new PrismException("Unknown MDP solution method " + mdpSolnMethod.fullName());
 		}
@@ -2310,21 +2316,21 @@ public class MDPModelChecker extends ProbModelChecker
 
 		IntSet unknownStates = IntSet.asIntSet(unknown);
 
-		if (topological) {
-			// Compute SCCInfo, including trivial SCCs in the subgraph obtained when only considering
-			// states in unknown
-			SCCInfo sccs = SCCComputer.computeTopologicalOrdering(this, mdp, true, unknown::get);
+		// if (topological) {
+		// 	// Compute SCCInfo, including trivial SCCs in the subgraph obtained when only considering
+		// 	// states in unknown
+		// 	SCCInfo sccs = SCCComputer.computeTopologicalOrdering(this, mdp, true, unknown::get);
 
-			IterationMethod.SingletonSCCSolver singletonSCCSolver = (int s, double[] soln) -> {
-				soln[s] = mdp.mvMultRewJacMinMaxSingle(s, soln, mdpRewards, min, strat);
-			};
+		// 	IterationMethod.SingletonSCCSolver singletonSCCSolver = (int s, double[] soln) -> {
+		// 		soln[s] = mdp.mvMultRewJacMinMaxSingle(s, soln, mdpRewards, min, strat);
+		// 	};
 
+		// 	// run the actual value iteration
+		// 	return iterationMethod.doTopologicalValueIteration(this, description, sccs, forMvMultRewMinMax, singletonSCCSolver, timer, iterationsExport);
+		// } else {
 			// run the actual value iteration
-			return iterationMethod.doTopologicalValueIteration(this, description, sccs, forMvMultRewMinMax, singletonSCCSolver, timer, iterationsExport);
-		} else {
-			// run the actual value iteration
-			return iterationMethod.doValueIteration(this, description, forMvMultRewMinMax, unknownStates, timer, iterationsExport);
-		}
+ 		return iterationMethod.doValueIteration(this, description, forMvMultRewMinMax, unknownStates, timer, iterationsExport);
+		// }
 	}
 
 	/**
@@ -2469,21 +2475,21 @@ public class MDPModelChecker extends ProbModelChecker
 		IntSet unknownStates = IntSet.asIntSet(unknown);
 
 		ModelCheckerResult rv;
-		if (topological) {
-			// Compute SCCInfo, including trivial SCCs in the subgraph obtained when only considering
-			// states in unknown
-			SCCInfo sccs = SCCComputer.computeTopologicalOrdering(this, mdp, true, unknown::get);
+		// if (topological) {
+		// 	// Compute SCCInfo, including trivial SCCs in the subgraph obtained when only considering
+		// 	// states in unknown
+		// 	SCCInfo sccs = SCCComputer.computeTopologicalOrdering(this, mdp, true, unknown::get);
 
-			IterationMethod.SingletonSCCSolver singletonSCCSolver = (int s, double[] soln) -> {
-				soln[s] = mdp.mvMultRewJacMinMaxSingle(s, soln, mdpRewards, min, strat);
-			};
+		// 	IterationMethod.SingletonSCCSolver singletonSCCSolver = (int s, double[] soln) -> {
+		// 		soln[s] = mdp.mvMultRewJacMinMaxSingle(s, soln, mdpRewards, min, strat);
+		// 	};
 
-			// run the actual value iteration
-			rv = iterationMethod.doTopologicalIntervalIteration(this, description, sccs, below, above, singletonSCCSolver, timer, iterationsExport);
-		} else {
+		// 	// run the actual value iteration
+		// 	rv = iterationMethod.doTopologicalIntervalIteration(this, description, sccs, below, above, singletonSCCSolver, timer, iterationsExport);
+		// } else {
 			// run the actual value iteration
 			rv = iterationMethod.doIntervalIteration(this, description, below, above, unknownStates, timer, iterationsExport);
-		}
+		// }
 
 		double max_v = PrismUtils.findMaxFinite(rv.soln, unknownStates.iterator());
 		if (max_v != Double.NEGATIVE_INFINITY) {
@@ -2552,7 +2558,8 @@ public class MDPModelChecker extends ProbModelChecker
 		// Start iterations
 		iters = totalIters = 0;
 		done = false;
-		while (!done && iters < maxIters) {
+		//while (!done && iters < maxIters) {
+		while (!done) {
 			iters++;
 			// Solve induced DTMC for strategy
 			dtmc = new DTMCFromMDPMemorylessAdversary(mdp, strat);
@@ -2566,14 +2573,112 @@ public class MDPModelChecker extends ProbModelChecker
 			for (i = 0; i < n; i++) {
 				// Don't look at target/inf states - we may not have strategy info for them,
 				// so they might appear non-optimal
-				if (target.get(i) || inf.get(i))
-					continue;
+				// if (target.get(i) || inf.get(i))
+				// 	continue;
+				// if (!PrismUtils.doublesAreClose(soln[i], soln2[i], termCritParam, termCrit == TermCrit.ABSOLUTE)) {
+					// done = false;
+					List<Integer> opt = mdp.mvMultRewMinMaxSingleChoicesExperiment(i, soln, mdpRewards, min, soln2[i]);
+
+					// Only update strategy if strictly better
+					if (!opt.contains(strat[i]) && (opt.size() > 0))
+					    {
+                                                done = false;
+						strat[i] = opt.get(0);
+					    }
+				// }
+			}
+		}
+
+		// Finished policy iteration
+		timer = System.currentTimeMillis() - timer;
+		mainLog.print("Policy iteration");
+		mainLog.println(" took " + iters + " cycles (" + totalIters + " iterations in total) and " + timer / 1000.0 + " seconds.");
+
+		// Return results
+		res = new ModelCheckerResult();
+		res.soln = soln;
+		res.numIters = totalIters;
+		res.timeTaken = timer / 1000.0;
+		return res;
+	}
+
+	protected ModelCheckerResult computeReachRewardsModPolIter(MDP mdp, MDPRewards mdpRewards, BitSet target, BitSet inf, boolean min, int strat[])
+			throws PrismException
+	{
+		ModelCheckerResult res;
+		int i, n, iters, totalIters;
+		double soln[], soln2[];
+		boolean done;
+		long timer;
+		DTMCModelChecker mcDTMC;
+		DTMC dtmc;
+		MCRewards mcRewards;
+
+		// Re-use solution to solve each new policy (strategy)?
+		boolean reUseSoln = true;
+
+		// Start policy iteration
+		timer = System.currentTimeMillis();
+		mainLog.println("Starting modified policy iteration (" + (min ? "min" : "max") + ")...");
+
+		// Create a DTMC model checker (for solving policies)
+		mcDTMC = new DTMCModelChecker(this);
+		mcDTMC.inheritSettings(this);
+		mcDTMC.setLog(new PrismDevNullLog());
+
+		// Limit iters for DTMC solution - this implements "modified" policy iteration
+		mcDTMC.setMaxIters(100);
+		mcDTMC.setErrorOnNonConverge(false);
+
+		// Store num states
+		n = mdp.getNumStates();
+
+		// Create solution vector(s)
+		soln = new double[n];
+		soln2 = new double[n];
+
+		// Initialise solution vectors.
+		for (i = 0; i < n; i++)
+			soln[i] = soln2[i] = target.get(i) ? 0.0 : inf.get(i) ? Double.POSITIVE_INFINITY : 0.0;
+
+		// If not passed in, create new storage for strategy and initialise
+		// Initial strategy just picks first choice (0) everywhere
+		if (strat == null) {
+			strat = new int[n];
+			for (i = 0; i < n; i++)
+				strat[i] = 0;
+		}
+			
+		// Start iterations
+		iters = totalIters = 0;
+		done = false;
+		//while (!done && iters < maxIters) {
+		while (!done) {
+			iters++;
+			// Solve induced DTMC for strategy
+			dtmc = new DTMCFromMDPMemorylessAdversary(mdp, strat);
+			mcRewards = new MCRewardsFromMDPRewards(mdpRewards, strat);
+			res = mcDTMC.computeReachRewardsValIter(dtmc, mcRewards, target, inf, reUseSoln ? soln : null, null);
+			soln = res.soln;
+			totalIters += res.numIters;
+			// Check if optimal, improve non-optimal choices
+			mdp.mvMultRewMinMax(soln, mdpRewards, min, soln2, null, false, null);
+			done = true;
+			for (i = 0; i < n; i++) {
+				// Don't look at target/inf states - we may not have strategy info for them,
+				// so they might appear non-optimal
+				// if (target.get(i) || inf.get(i))
+				// 	continue;
 				if (!PrismUtils.doublesAreClose(soln[i], soln2[i], termCritParam, termCrit == TermCrit.ABSOLUTE)) {
 					done = false;
-					List<Integer> opt = mdp.mvMultRewMinMaxSingleChoices(i, soln, mdpRewards, min, soln2[i]);
+					List<Integer> opt = mdp.mvMultRewMinMaxSingleChoicesExperiment(i, soln, mdpRewards, min, soln2[i]);
+
 					// Only update strategy if strictly better
-					if (!opt.contains(strat[i]))
+					if (!opt.contains(strat[i]) && (opt.size() > 0))
+					    {
+                                                done = false;
 						strat[i] = opt.get(0);
+					    }
 				}
 			}
 		}
@@ -2590,6 +2695,7 @@ public class MDPModelChecker extends ProbModelChecker
 		res.timeTaken = timer / 1000.0;
 		return res;
 	}
+
 
 	/**
 	 * Construct strategy information for min/max expected reachability.

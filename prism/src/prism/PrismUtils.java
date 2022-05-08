@@ -83,7 +83,7 @@ public class PrismUtils
 			return false;
 		}
 		// Compute/check error
-		return (Math.abs(d1 - d2) < epsilon);
+		return (2 * 0.95 * Math.abs(d1 - d2) < epsilon * (1-0.95));
 	}
 
 	/**

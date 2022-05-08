@@ -129,6 +129,7 @@ public class IterationMethodGS extends IterationMethod {
 			@Override
 			public boolean iterateAndCheckConvergence(IntSet states)
 			{
+
 				// Matrix-vector multiply
 				error = mdp.mvMultGSMinMax(soln,
 				                                    min,

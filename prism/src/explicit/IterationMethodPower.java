@@ -81,6 +81,7 @@ public class IterationMethodPower extends IterationMethod {
 			@Override
 			public void doIterate(IntSet states)
 			{
+         
 				dtmc.mvMultRew(soln, rew, soln2, states.iterator());
 			}
 		};
@@ -161,6 +162,7 @@ public class IterationMethodPower extends IterationMethod {
 			@Override
 			public void doIterate(IntSet states)
 			{
+
 				mdp.mvMultRewMinMax(soln, rewards, min, soln2, states.iterator(), strat);
 			}
 		};

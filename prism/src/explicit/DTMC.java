@@ -547,7 +547,7 @@ public interface DTMC extends Model
 	{
 		while (states.hasNext()) {
 			int s = states.nextInt();
-			result[s] = mvMultRewSingle(s, vect, mcRewards);
+			result[s] = mvMultRewSingleExperiment(s, vect, mcRewards);
 		}
 	}
 
@@ -638,10 +638,10 @@ public interface DTMC extends Model
 	 * @param vect Vector to multiply by
 	 * @param mcRewards The rewards
 	 */
-	public default double mvMultRewSingle(int s, double vect[], MCRewards mcRewards)
+	public default double mvMultRewSingleExperiment(int s, double vect[], MCRewards mcRewards)
 	{
 		double d = mcRewards.getStateReward(s);
-		d += sumOverTransitions(s, (__, t, prob) -> {
+		d += 0.95 * sumOverTransitions(s, (__, t, prob) -> {
 			return prob * vect[t];
 		});
 		return d;

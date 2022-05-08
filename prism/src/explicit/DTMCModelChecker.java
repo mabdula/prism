@@ -1800,6 +1800,7 @@ public class DTMCModelChecker extends ProbModelChecker
 	protected ModelCheckerResult computeReachRewardsValIter(DTMC dtmc, MCRewards mcRewards, BitSet target, BitSet inf, double init[], BitSet known)
 			throws PrismException
 	{
+
 		ModelCheckerResult res;
 		BitSet unknown;
 		int i, n, iters;
@@ -1854,6 +1855,7 @@ public class DTMCModelChecker extends ProbModelChecker
 		iters = 0;
 		done = false;
 		while (!done && iters < maxIters) {
+		// while (!done) {
 			//mainLog.println(soln);
 			iters++;
 			// Matrix-vector multiply

@@ -247,6 +247,7 @@ public abstract class IterationMethod {
 		@Override
 		public boolean iterateAndCheckConvergence(IntSet states) throws PrismException
 		{
+        
 			// do the iteration
 			doIterate(states);
 			// optionally, post processing
@@ -432,6 +433,7 @@ public abstract class IterationMethod {
 		while (!done && iters < maxIters) {
 			iters++;
 			// do iteration step
+        
 			done = iteration.iterateAndCheckConvergence(unknownStates);
 
 			if (iterationsExport != null)

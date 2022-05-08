@@ -876,6 +876,7 @@ public class MDPSparse extends MDPExplicit
 	@Override
 	public double mvMultJacMinMaxSingle(int s, double vect[], boolean min, int strat[])
 	{
+
 		int j, k, l1, h1, l2, h2, stratCh = -1;
 		double diag, d, minmax;
 		boolean first;
